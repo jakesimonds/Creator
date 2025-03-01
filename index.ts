@@ -8,9 +8,15 @@ class ExampleAugmentOSApp extends TpaServer {
     // Handle real-time transcription
     const cleanup = [
       session.events.onTranscription((data) => {
+        // Display the transcribed text
         session.layouts.showTextWall(data.text, {
-          durationMs: data.isFinal ? 3000 : undefined
+          durationMs: data.isFinal ? 5000 : undefined
         });
+
+        // Log transcription for debugging
+        if (data.isFinal) {
+          console.log('Final transcription:', data.text);
+        }
       }),
 
       session.events.onPhoneNotifications((data) => {}),
