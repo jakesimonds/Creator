@@ -30,6 +30,7 @@ class ExampleAugmentOSApp extends TpaServer {
         // Process final transcriptions
         if (data.isFinal) {
           const lowerText = data.text.toLowerCase();
+          let handledSpecialCommand = false;
           
           // Check if we're waiting for confirmation
           if (this.awaitingConfirmation) {
@@ -46,6 +47,7 @@ class ExampleAugmentOSApp extends TpaServer {
               // Reset confirmation state
               this.awaitingConfirmation = false;
               this.pendingCommand = '';
+              handledSpecialCommand = true;
             } 
             else if (lowerText.includes('no') || lowerText.includes('nope') || lowerText.includes('cancel')) {
               // User rejected, go back to original prompt
@@ -56,12 +58,14 @@ class ExampleAugmentOSApp extends TpaServer {
               // Reset confirmation state
               this.awaitingConfirmation = false;
               this.pendingCommand = '';
+              handledSpecialCommand = true;
             }
             else {
               // If neither yes nor no, continue waiting for confirmation
               session.layouts.showTextWall(`Please confirm: "${this.pendingCommand}" - Say yes or no`, {
                 durationMs: 5000
               });
+              // Don't mark as handled so we still show the transcription
             }
           }
           // Not awaiting confirmation, check for magic word
@@ -81,13 +85,16 @@ class ExampleAugmentOSApp extends TpaServer {
               session.layouts.showTextWall(`Do you want me to create: "${command}"? Say yes or no.`, {
                 durationMs: 7000
               });
+              handledSpecialCommand = true;
             }
           }
 
-          // Display the transcribed text (original transcription)
-          session.layouts.showTextWall(data.text, {
-            durationMs: 3000
-          });
+          // Always display the transcribed text unless we handled a special command
+          if (!handledSpecialCommand) {
+            session.layouts.showTextWall(data.text, {
+              durationMs: 3000
+            });
+          }
 
           // Log transcription for debugging
           console.log('Final transcription:', data.text);
@@ -122,3 +129,4 @@ const app = new ExampleAugmentOSApp({
 });
 
 app.start().catch(console.error);
+
