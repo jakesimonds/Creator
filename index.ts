@@ -1,9 +1,18 @@
 import { TpaServer, TpaSession } from '@augmentos/sdk';
 
+/**
+ * Simulates a 3D printing request
+ * @param command The command to 3D print
+ */
+const threeDPrintIt = (command: string) => {
+  console.log(`3D PRINTING: "${command}"`);
+};
+
 class ExampleAugmentOSApp extends TpaServer {
+  // Track state
   private lastTranscriptionTime: number = 0;
-  private currentCommand: string = '';
-  private isCollecting: boolean = false;
+  private awaitingConfirmation: boolean = false;
+  private pendingCommand: string = '';
 
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
     // Show welcome message
@@ -12,44 +21,79 @@ class ExampleAugmentOSApp extends TpaServer {
     // Handle real-time transcription
     const cleanup = [
       session.events.onTranscription((data) => {
-        const triggerPhrase = "hey creator";
+        const magicWord = "creator";
         const currentTime = Date.now();
         
-        // If there's been more than 1 second since last transcription and we were collecting
-        if (this.isCollecting && currentTime - this.lastTranscriptionTime > 500) {
-          console.log('Command captured after pause:', this.currentCommand);
-          const res = this.currentCommand;
-          // Simply display the command text
-          session.layouts.showTextWall(this.currentCommand, {
-            durationMs: 5000
-          });
-          // Reset collection state
-          this.isCollecting = false;
-          this.currentCommand = '';
-        }
-
         // Update last transcription time
         this.lastTranscriptionTime = currentTime;
 
-        // Check for trigger phrase and start collecting
+        // Process final transcriptions
         if (data.isFinal) {
-          if (data.text.toLowerCase().startsWith(triggerPhrase)) {
-            this.isCollecting = true;
-            this.currentCommand = data.text.slice(triggerPhrase.length).trim();
-          } else if (this.isCollecting) {
-            // Append new transcription to current command
-            this.currentCommand += ' ' + data.text;
+          const lowerText = data.text.toLowerCase();
+          
+          // Check if we're waiting for confirmation
+          if (this.awaitingConfirmation) {
+            // Check for yes/no response
+            if (lowerText.includes('yes') || lowerText.includes('yeah') || lowerText.includes('correct')) {
+              // User confirmed, execute the command
+              session.layouts.showTextWall(`Executing: ${this.pendingCommand}`, {
+                durationMs: 3000
+              });
+              
+              // Call the 3D print function
+              threeDPrintIt(this.pendingCommand);
+              
+              // Reset confirmation state
+              this.awaitingConfirmation = false;
+              this.pendingCommand = '';
+            } 
+            else if (lowerText.includes('no') || lowerText.includes('nope') || lowerText.includes('cancel')) {
+              // User rejected, go back to original prompt
+              session.layouts.showTextWall("Command cancelled. What would you like to create?", {
+                durationMs: 3000
+              });
+              
+              // Reset confirmation state
+              this.awaitingConfirmation = false;
+              this.pendingCommand = '';
+            }
+            else {
+              // If neither yes nor no, continue waiting for confirmation
+              session.layouts.showTextWall(`Please confirm: "${this.pendingCommand}" - Say yes or no`, {
+                durationMs: 5000
+              });
+            }
           }
-        }
+          // Not awaiting confirmation, check for magic word
+          else if (lowerText.includes(magicWord)) {
+            // Get everything after "creator"
+            const index = lowerText.indexOf(magicWord) + magicWord.length;
+            const command = data.text.slice(index).trim();
+            
+            if (command) {
+              console.log('Command captured:', command);
+              
+              // Store the command and enter confirmation mode
+              this.pendingCommand = command;
+              this.awaitingConfirmation = true;
+              
+              // Ask for confirmation
+              session.layouts.showTextWall(`Do you want me to create: "${command}"? Say yes or no.`, {
+                durationMs: 7000
+              });
+            }
+          }
 
-        // Display the transcribed text
-        session.layouts.showTextWall(data.text, {
-          durationMs: data.isFinal ? 5000 : undefined
-        });
+          // Display the transcribed text (original transcription)
+          session.layouts.showTextWall(data.text, {
+            durationMs: 3000
+          });
 
-        // Log transcription for debugging
-        if (data.isFinal) {
+          // Log transcription for debugging
           console.log('Final transcription:', data.text);
+        } else {
+          // For non-final transcriptions, just show them
+          session.layouts.showTextWall(data.text);
         }
       }),
 
