@@ -31,10 +31,10 @@ class ExampleAugmentOSApp extends TpaServer {
 // DEV CONSOLE URL: https://augmentos.dev/
 // Get your webhook URL from ngrok (or whatever public URL you have)
 const app = new ExampleAugmentOSApp({
-  packageName: 'org.augmentos.exampleapp', // make sure this matches your app in dev console
+  packageName: 'org.example.creator', // make sure this matches your app in dev console
   apiKey: 'your_api_key', // Not used right now, play nice
-  port: 3000, // The port you're hosting the server on
-  augmentOSWebsocketUrl: 'wss://dev.augmentos.org/tpa-ws' //AugmentOS url
+  port: 80, // The port you're hosting the server on
+  augmentOSWebsocketUrl: 'wss://staging.augmentos.org/tpa-ws' //AugmentOS url
 });
 
 app.start().catch(console.error);
