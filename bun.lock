@@ -5,6 +5,7 @@
       "name": "augmentos-cloud-example-app",
       "dependencies": {
         "@augmentos/sdk": "^1.0.7",
+        "axios": "^1.6.2",
       },
     },
   },

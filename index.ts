@@ -1,5 +1,7 @@
 import { TpaServer, TpaSession } from '@augmentos/sdk';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // API key for Meshy text-to-3D API
 const MESHY_API_KEY = 'YOUR_API_KEY'; // Replace with your actual API key
@@ -13,15 +15,34 @@ const threeDPrintIt = async (command: string) => {
   
 };
 
-class ExampleAugmentOSApp extends TpaServer {
+class AugmentOSApp extends TpaServer {
   // Track state
   private lastTranscriptionTime: number = 0;
   private awaitingConfirmation: boolean = false;
   private pendingCommand: string = '';
+  private imageBase64: string;
+
+  constructor(config: any) {
+    super(config);
+
+    // Read and encode the image in constructor
+    try {
+      const imagePath = path.join(__dirname, 'test.bmp');
+      const imageBuffer = fs.readFileSync(imagePath);
+      this.imageBase64 = imageBuffer.toString('base64');
+      console.log('Image encoded successfully');
+    } catch (error) {
+      console.error('Error reading or encoding image:', error);
+      this.imageBase64 = '';
+    }
+  }
 
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
-    // Show welcome message
-    session.layouts.showTextWall("Example Captions App Ready!");
+    // Show image immediately for 5 seconds
+    session.layouts.showBitmapView(this.imageBase64);
+    setTimeout(() => {
+      session.layouts.showTextWall("Welcome to AugmentOS!");
+    }, 5000);  // 5000ms = 5 seconds
 
     // Handle real-time transcription
     const cleanup = [
@@ -136,11 +157,11 @@ class ExampleAugmentOSApp extends TpaServer {
 // Start the server
 // DEV CONSOLE URL: https://augmentos.dev/
 // Get your webhook URL from ngrok (or whatever public URL you have)
-const app = new ExampleAugmentOSApp({
+const app = new AugmentOSApp({
   packageName: 'org.example.creator', // make sure this matches your app in dev console
   apiKey: 'your_api_key', // Not used right now, play nice
   port: 80, // The port you're hosting the server on
-  augmentOSWebsocketUrl: 'wss://staging.augmentos.org/tpa-ws' //AugmentOS url
+  augmentOSWebsocketUrl: 'wss://dev.augmentos.org/tpa-ws' //AugmentOS url
 });
 
 app.start().catch(console.error);
