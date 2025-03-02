@@ -7,12 +7,71 @@ import * as path from 'path';
 const MESHY_API_KEY = 'YOUR_API_KEY'; // Replace with your actual API key
 
 /**
+ * Shows a simple three-dot loading animation
+ * @param session The TPA session
+ * @param durationMs How long to show the animation
+ * @returns A promise that resolves when the animation is done
+ */
+const showThreeDotsAnimation = (session: TpaSession, durationMs: number = 10000): Promise<void> => {
+  return new Promise((resolve) => {
+    const frames = [
+      ".",
+      "..",
+      "..."
+    ];
+    
+    let index = 0;
+    const intervalMs = 600; // Update every 600ms for better visibility
+    
+    // Start the animation
+    const interval = setInterval(() => {
+      session.layouts.showTextWall(frames[index % frames.length], {
+        durationMs: intervalMs + 100 // Slightly longer than interval to avoid flicker
+      });
+      index++;
+    }, intervalMs);
+    
+    // Stop the animation after the specified duration
+    setTimeout(() => {
+      clearInterval(interval);
+      resolve();
+    }, durationMs);
+  });
+};
+
+/**
  * Sends a request to the Meshy text-to-3D API to generate a 3D model from text
  * @param command The command to turn into a 3D model
  */
 const threeDPrintIt = async (command: string) => {
   console.log(`Sending to 3D API: "${command}"`);
   
+  // Placeholder for API call - uncomment when ready to use
+  /*
+  const headers = { Authorization: `Bearer ${MESHY_API_KEY}` };
+  const payload = {
+    mode: 'preview',
+    prompt: command,
+    art_style: 'realistic',
+    should_remesh: true
+  };
+  
+  try {
+    const response = await axios.post(
+      'https://api.meshy.ai/openapi/v2/text-to-3d',
+      payload,
+      { headers }
+    );
+    console.log('3D model generated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error generating 3D model:', error);
+    throw error;
+  }
+  */
+  
+  // For testing, just return a success after a delay
+  return new Promise(resolve => setTimeout(() => resolve({ success: true }), 2000));
 };
 
 class AugmentOSApp extends TpaServer {
@@ -20,7 +79,7 @@ class AugmentOSApp extends TpaServer {
   private lastTranscriptionTime: number = 0;
   private awaitingConfirmation: boolean = false;
   private pendingCommand: string = '';
-  private imageBase64: string;
+  private imageBase64: string = '';
 
   constructor(config: any) {
     super(config);
@@ -33,16 +92,22 @@ class AugmentOSApp extends TpaServer {
       console.log('Image encoded successfully');
     } catch (error) {
       console.error('Error reading or encoding image:', error);
-      this.imageBase64 = '';
     }
   }
 
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
-    // Show image immediately for 5 seconds
-    session.layouts.showBitmapView(this.imageBase64);
-    setTimeout(() => {
+    // Show image immediately at startup
+    if (this.imageBase64) {
+      // Display the image without duration parameter
+      session.layouts.showBitmapView(this.imageBase64);
+      
+      // Set timeout to show welcome message after image has been displayed for 5 seconds
+      setTimeout(() => {
+        session.layouts.showTextWall("Welcome to AugmentOS!");
+      }, 5000);  // 5000ms = 5 seconds
+    } else {
       session.layouts.showTextWall("Welcome to AugmentOS!");
-    }, 5000);  // 5000ms = 5 seconds
+    }
 
     // Handle real-time transcription
     const cleanup = [
@@ -67,23 +132,27 @@ class AugmentOSApp extends TpaServer {
                 durationMs: 3000
               });
               
-              // Call the 3D print function with API integration
-              threeDPrintIt(this.pendingCommand)
-                .then(result => {
-                  session.layouts.showTextWall(`3D model created successfully!`, {
-                    durationMs: 5000
-                  });
-                })
-                .catch(err => {
-                  session.layouts.showTextWall(`Failed to create 3D model. Please try again.`, {
-                    durationMs: 5000
-                  });
-                });
-              
-              // Reset confirmation state
+              // Store command and reset state before async operations
+              const command = this.pendingCommand;
               this.awaitingConfirmation = false;
               this.pendingCommand = '';
               handledSpecialCommand = true;
+              
+              // Show loading animation then call API
+              showThreeDotsAnimation(session, 10000).then(() => {
+                // Call the 3D print function with API integration
+                threeDPrintIt(command)
+                  .then(result => {
+                    session.layouts.showTextWall(`3D model created successfully!`, {
+                      durationMs: 5000
+                    });
+                  })
+                  .catch(err => {
+                    session.layouts.showTextWall(`Failed to create 3D model. Please try again.`, {
+                      durationMs: 5000
+                    });
+                  });
+              });
             } 
             else if (lowerText.includes('no') || lowerText.includes('nope') || lowerText.includes('cancel')) {
               // User rejected, go back to original prompt
