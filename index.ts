@@ -1,11 +1,36 @@
 import { TpaServer, TpaSession } from '@augmentos/sdk';
+import axios from 'axios';
+
+// API key for Meshy text-to-3D API
+const MESHY_API_KEY = 'YOUR_API_KEY'; // Replace with your actual API key
 
 /**
- * Simulates a 3D printing request
- * @param command The command to 3D print
+ * Sends a request to the Meshy text-to-3D API to generate a 3D model from text
+ * @param command The command to turn into a 3D model
  */
-const threeDPrintIt = (command: string) => {
-  console.log(`3D PRINTING: "${command}"`);
+const threeDPrintIt = async (command: string) => {
+  console.log(`Sending to 3D API: "${command}"`);
+  
+  const headers = { Authorization: `Bearer ${MESHY_API_KEY}` };
+  const payload = {
+    mode: 'preview',
+    prompt: command,
+    art_style: 'realistic',
+    should_remesh: true
+  };
+  
+  try {
+    const response = await axios.post(
+      'https://api.meshy.ai/openapi/v2/text-to-3d',
+      payload,
+      { headers }
+    );
+    console.log('3D model generated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error generating 3D model:', error);
+    throw error;
+  }
 };
 
 class ExampleAugmentOSApp extends TpaServer {
@@ -41,8 +66,18 @@ class ExampleAugmentOSApp extends TpaServer {
                 durationMs: 3000
               });
               
-              // Call the 3D print function
-              threeDPrintIt(this.pendingCommand);
+              // Call the 3D print function with API integration
+              threeDPrintIt(this.pendingCommand)
+                .then(result => {
+                  session.layouts.showTextWall(`3D model created successfully!`, {
+                    durationMs: 5000
+                  });
+                })
+                .catch(err => {
+                  session.layouts.showTextWall(`Failed to create 3D model. Please try again.`, {
+                    durationMs: 5000
+                  });
+                });
               
               // Reset confirmation state
               this.awaitingConfirmation = false;
