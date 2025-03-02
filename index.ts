@@ -11,26 +11,6 @@ const MESHY_API_KEY = 'YOUR_API_KEY'; // Replace with your actual API key
 const threeDPrintIt = async (command: string) => {
   console.log(`Sending to 3D API: "${command}"`);
   
-  const headers = { Authorization: `Bearer ${MESHY_API_KEY}` };
-  const payload = {
-    mode: 'preview',
-    prompt: command,
-    art_style: 'realistic',
-    should_remesh: true
-  };
-  
-  try {
-    const response = await axios.post(
-      'https://api.meshy.ai/openapi/v2/text-to-3d',
-      payload,
-      { headers }
-    );
-    console.log('3D model generated:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error generating 3D model:', error);
-    throw error;
-  }
 };
 
 class ExampleAugmentOSApp extends TpaServer {
